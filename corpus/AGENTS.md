@@ -20,3 +20,4 @@
 * Use markdown tables and mermaid diagrams as needed, but only when they truly add value.
 * Don't start numbering features or decisions etc, loose references to other .md files is enough.
 * Don't reference spec files or their numbering.
+* Use the project's ubiquitous language (the agreed-upon domain terms) consistently and accurately. The authoritative term list lives in `ubiquitous-language.md`. Don't invent new terms or near-synonyms for things that already have a name in the code: the corpus must use the same words the code, UI, and collaborators use, so a reader can map prose directly onto the code. When you must name code, use the existing names (directory, binary, type, field) rather than re-describing it with a novel metaphor.

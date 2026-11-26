@@ -11,7 +11,7 @@ Sailscale wraps the official Tailscale engine rather than reimplementing it. `ta
 ## Decisions (technical)
 
 - **Engine lifecycle is supervised by a ConnMan VPN plugin**, not by a dedicated long-running Sailscale daemon. There is therefore **no resident Sailscale controller daemon**; `tailscaled` is spawned and stopped by the ConnMan plugin.
-- **Control happens via a short-lived Go binary** (`sailscale-ctl`) that runs on demand, talks to `tailscaled` through Tailscale's LocalAPI (the `tailscale.com/client/local` Go package), and exits. It is not a service.
+- **Control happens via a short-lived Go binary** (`sailscale-ctl`) that runs on demand and exits. It is a thin backend-for-frontend over the bundled `tailscale` CLI: it execs only the CLI's local features (`up`/`down`/`status`/`version`) and re-emits a stable JSON contract, isolating all Tailscale-specific knowledge to that single translation layer. It is not a service.
 - **The engine is bundled** in the Sailscale RPM (a pinned `tailscaled`/`tailscale` build). No separate Sailfish-tailscale package dependency.
 - **Kernel networking is the default.** The engine runs in kernel-tun mode (full performance, all protocols), owned by the ConnMan plugin's helper slot. Userspace-networking is *not* the default and is used only as a degrade-gracefully fallback.
 
@@ -28,7 +28,7 @@ Sailscale wraps the official Tailscale engine rather than reimplementing it. `ta
 ## Acceptance criteria
 
 - [ ] `tailscaled` starts and stays running under supervision, as a non-root user.
-- [ ] `sailscale-ctl` can drive `tailscale up/down/status` via LocalAPI without shelling out to the `tailscale` CLI.
+- [ ] `sailscale-ctl` can drive `tailscale up/down/status/version` by exec'ing the bundled CLI's local features and emitting a stable JSON contract.
 - [ ] After login the device appears in the tailnet with a 100.x address.
 - [ ] Peers are reachable and can reach this device (ACL permitting).
 - [ ] Advertised routes are accepted and traffic flows over them.

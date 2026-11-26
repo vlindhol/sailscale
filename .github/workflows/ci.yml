@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sailscale-ctl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - name: Verify formatting
+        run: |
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "The following files need gofmt:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: |
+          version="$(cat ../tailscale/VERSION)"
+          go build -ldflags "-X main.bundledTailscaleVersion=${version}" -v ./...
+
+      - name: Test
+        run: go test -race -count=1 ./...
+
+  verify-tailscale-consistency:
+    name: Tailscale version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Verify tailscale/VERSION agrees everywhere
+        run: |
+          set -euo pipefail
+          version="$(cat tailscale/VERSION)"
+          echo "pinned version: ${version}"
+
+          # 1. tailscale/README.md table must contain the version.
+          if ! grep -q "| Version | \`${version}\` |" tailscale/README.md; then
+            echo "tailscale/README.md does not list version ${version}" >&2
+            exit 1
+          fi
+
+          # 2. The spec's %define tailscale_version must match.
+          specver="$(grep -E '^%define tailscale_version ' packaging/sailscale.spec | awk '{print $3}')"
+          if [ "${specver}" != "${version}" ]; then
+            echo "packaging/sailscale.spec tailscale_version=${specver}, want ${version}" >&2
+            exit 1
+          fi
+
+          # 3. fetch.sh must reference the same tarball name (checksum is checked
+          #    in the fetch-tailscale job).
+          if ! grep -q "tailscale_\\\${VERSION}_\\\${ARCH}" tailscale/fetch.sh; then
+            echo "tailscale/fetch.sh no longer derives the tarball from tailscale/VERSION" >&2
+            exit 1
+          fi
+
+          echo "tailscale version is consistent."
+
+  fetch-tailscale:
+    name: Fetch and verify Tailscale bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install qemu-user (emulator for aarch64)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - name: Fetch, verify, and extract tarball
+        run: |
+          set -euo pipefail
+          version="$(cat tailscale/VERSION)"
+          arch=arm64
+          url="https://pkgs.tailscale.com/stable/tailscale_${version}_${arch}.tgz"
+          expected="$(grep -E '^\| SHA-256 \|' tailscale/README.md | awk -F'\`' '{print $2}')"
+          curl -fsSL -o /tmp/tailscale.tgz "$url"
+          actual="$(sha256sum /tmp/tailscale.tgz | awk '{print $1}')"
+          echo "expected sha256: ${expected}"
+          echo "actual   sha256: ${actual}"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "checksum mismatch for tailscale ${version} ${arch}" >&2
+            exit 1
+          fi
+          mkdir -p /tmp/tailscale
+          tar -xzf /tmp/tailscale.tgz -C /tmp/tailscale
+          echo "tailscale_${version}_${arch}" > /tmp/tailscale/extracted.dir
+
+      - name: Verify the CLI's JSON schema still decodes (translation layer)
+        run: |
+          set -euo pipefail
+          dir="$(cat /tmp/tailscale/extracted.dir)"
+          bin="/tmp/tailscale/${dir}/tailscale"
+          tmp="$(mktemp -d)"
+
+          # `version --json` needs no daemon.
+          qemu-aarch64 "$bin" version --json > "$tmp/version.json"
+
+          # Boot a throwaway tailscaled (NeedsLogin) so `status --json` has a
+          # daemon to query.
+          qemu-aarch64 /tmp/tailscale/"${dir}"/tailscaled \
+            --socket "$tmp/tailscaled.sock" \
+            --state "$tmp/tailscaled.state" \
+            --tun=userspace-networking &
+          daemon_pid=$!
+          trap 'kill "$daemon_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 150); do
+            [ -S "$tmp/tailscaled.sock" ] && break
+            sleep 0.2
+          done
+          qemu-aarch64 "$bin" --socket "$tmp/tailscaled.sock" status --json > "$tmp/status.json"
+
+          echo "--- status.json ---"
+          cat "$tmp/status.json"
+          echo "--- version.json ---"
+          cat "$tmp/version.json"
+
+          # Decode both through the exact types sailscale-ctl uses.
+          cd sailscale-ctl
+          go run ./cmd/schema-check "$tmp/status.json" "$tmp/version.json"
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on tailscale/fetch.sh
+        run: shellcheck tailscale/fetch.sh
