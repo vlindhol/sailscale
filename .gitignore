@@ -1,0 +1,24 @@
+# OS and other generated files
+
+# macOS
+.DS_Store
+
+# Build outputs
+build/
+*.o
+*.so
+*.pro.user
+*.pro.user.*
+Makefile
+*.rpm
+*.deb
+
+# Qt / qmake
+moc_*
+qrc_*
+ui_*
+
+# Editors
+.vscode/
+.idea/
+*.swp
