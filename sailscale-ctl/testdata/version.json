@@ -1,0 +1,10 @@
+{
+	"majorMinorPatch": "1.104.7",
+	"short": "1.104.7",
+	"long": "1.104.7-tabcdef123",
+	"unstableBranch": false,
+	"gitCommit": "abcdef123",
+	"gitCommitTime": "2026-11-12T00:00:00Z",
+	"go": "go1.23.4",
+	"daemonLong": ""
+}

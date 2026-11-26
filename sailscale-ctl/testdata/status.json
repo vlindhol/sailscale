@@ -1,0 +1,47 @@
+{
+  "Version": "1.104.7-tabcdef123",
+  "TUN": true,
+  "BackendState": "Running",
+  "AuthURL": "",
+  "TailscaleIPs": ["100.64.0.1", "fd7a:115c:a1e0::1"],
+  "Self": {
+    "ID": "n12345CNTRL",
+    "PublicKey": "nodekey:abcdef",
+    "HostName": "phone",
+    "DNSName": "phone.example.ts.net.",
+    "OS": "sailfishos",
+    "UserID": 1,
+    "TailscaleIPs": ["100.64.0.1"],
+    "Online": true,
+    "LastSeen": null
+  },
+  "Peer": {
+    "nodekey:1111": {
+      "ID": "n11111CNTRL",
+      "PublicKey": "nodekey:1111",
+      "HostName": "laptop",
+      "DNSName": "laptop.example.ts.net.",
+      "OS": "linux",
+      "UserID": 2,
+      "TailscaleIPs": ["100.64.0.2"],
+      "Online": true
+    },
+    "nodekey:2222": {
+      "ID": "n22222CNTRL",
+      "PublicKey": "nodekey:2222",
+      "HostName": "server",
+      "DNSName": "server.example.ts.net.",
+      "OS": "linux",
+      "UserID": 2,
+      "TailscaleIPs": ["100.64.0.3"],
+      "Online": false
+    }
+  },
+  "User": {
+    "2": {
+      "ID": 2,
+      "LoginName": "user@example.com",
+      "DisplayName": "Example User"
+    }
+  }
+}

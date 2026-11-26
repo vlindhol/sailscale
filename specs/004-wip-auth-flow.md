@@ -11,7 +11,7 @@ Tailscale device authentication is out-of-band (a browser approval), not a usern
 ## Decisions (technical)
 
 - **Interactive login (URL + QR) is the only mechanism for v1.** Auth-key entry is out of scope.
-- The short-lived `sailscale-ctl` controller asks `tailscaled` (via LocalAPI) to start interactive auth and returns the auth URL; the UI renders it as both a URL and a QR code with a "waiting for login" state.
+- The short-lived `sailscale-ctl` controller drives login by delegating to the bundled `tailscale` CLI's local features (which in turn ask `tailscaled` to start interactive auth), and the UI renders the resulting auth URL as both a URL and a QR code with a "waiting for login" state.
 
 ## Business rules
 
